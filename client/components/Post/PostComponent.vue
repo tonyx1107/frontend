@@ -28,7 +28,6 @@ async function getComments(rootId?: string) {
   try {
     commentResults = await fetchy(`/api/discussion/`, "GET", { query });
   } catch {
-    console.error("Failed to fetch comments:", error);
     return;
   }
   comments.value = commentResults;
