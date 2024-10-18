@@ -3,10 +3,14 @@ import { useUserStore } from "@/stores/user";
 import { formatDate } from "@/utils/formatDate";
 import { storeToRefs } from "pinia";
 import { fetchy } from "../../utils/fetchy";
+import { ref, onMounted } from "vue";
+import CommentComponent from "./CommentComponent.vue";
+import CreateCommentForm from "./CreateCommentForm.vue";
 
 const props = defineProps(["post"]);
 const emit = defineEmits(["editPost", "refreshPosts"]);
 const { currentUsername } = storeToRefs(useUserStore());
+const comments = ref<Array<Record<string, string>>>([]);
 
 const deletePost = async () => {
   try {
@@ -16,6 +20,31 @@ const deletePost = async () => {
   }
   emit("refreshPosts");
 };
+
+async function getComments(rootId?: string) {
+  let commentResults;
+  let query: Record<string, string> = rootId ? { rootId } : {};
+  console.log(query);
+  try {
+    commentResults = await fetchy(`/api/discussion/`, "GET", { query });
+  } catch {
+    console.error("Failed to fetch comments:", error);
+    return;
+  }
+  comments.value = commentResults;
+}
+
+async function processCommentAdded() {
+  await getComments(props.post._id); // Refresh the comments
+}
+
+function processCommentDeleted(commentId: string) {
+  comments.value = comments.value.filter((comment) => comment._id !== commentId); // Remove the deleted comment
+}
+
+onMounted(async () => {
+  await getComments(props.post._id);
+});
 </script>
 
 <template>
@@ -31,6 +60,10 @@ const deletePost = async () => {
       <p v-else>Created on: {{ formatDate(props.post.dateCreated) }}</p>
     </article>
   </div>
+  <div class="comments">
+    <CommentComponent v-for="comment in comments" :key="comment._id" :comment="comment" @commentDeleted="processCommentDeleted" />
+  </div>
+  <CreateCommentForm :post="props.post" @commentAdded="processCommentAdded" />
 </template>
 
 <style scoped>
